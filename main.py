@@ -1,7 +1,17 @@
 from playwright.sync_api import sync_playwright, TimeoutError
 import logging
-from flask import Flask
+from flask import Flask, jsonify
 import os
+
+# Configure logging at MODULE LEVEL
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s.%(msecs)03d] [%(levelname)-8s] [%(name)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+# CREATE FLASK APP AT MODULE LEVEL
+app = Flask("BookResellerIntegration")
 
 # UNFINISHED
 def thalia(isbn: str,
@@ -22,7 +32,15 @@ def thalia(isbn: str,
                 args=[f"--remote-debugging-port={remote_debugging_port}"]
             )
         else:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu'
+                ]
+            )
 
         if use_obfuscation_headers:
             context = browser.new_context(
@@ -149,7 +167,15 @@ def rebuy(isbn: str,
                 args=[f"--remote-debugging-port={remote_debugging_port}"]
             )
         else:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu'
+                ]
+            )
 
         if use_obfuscation_headers:
             context = browser.new_context(
@@ -226,7 +252,15 @@ def momox(isbn: str,
                 args=[f"--remote-debugging-port={remote_debugging_port}"]
             )
         else:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu'
+                ]
+            )
 
         if use_obfuscation_headers:
             context = browser.new_context(
@@ -294,86 +328,52 @@ def momox(isbn: str,
         return -1
 
 
-def main():
-    logging.basicConfig(
-        level=logging.INFO,
-        format='[%(asctime)s.%(msecs)03d] [%(levelname)-8s] [%(name)s] %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-    
-    # Add color to log levels
-    for handler in logging.root.handlers:
-        if isinstance(handler, logging.StreamHandler):
-            formatter: logging.Formatter = handler.formatter or logging.Formatter()
-            
-            class ColoredFormatter(logging.Formatter):
-                COLORS = {
-                    'DEBUG': '\033[37m',    # Gray
-                    'INFO': '\033[34m',     # Blue
-                    'WARNING': '\033[33m',  # Yellow
-                    'ERROR': '\033[31m',    # Red
-                    'CRITICAL': '\033[35m', # Magenta
-                    'RESET': '\033[0m'
-                }
-                
-                def format(self, record:logging.LogRecord):
-                    log_color = self.COLORS.get(record.levelname, self.COLORS['RESET'])
-                    record.levelname = f"{log_color}{record.levelname}{self.COLORS['RESET']}"
-                    return super().format(record)
-            
-            handler.setFormatter(ColoredFormatter(formatter._fmt, formatter.datefmt))
-        
-    app = Flask("BookResellerIntegration")
+# DEFINE ROUTES AT MODULE LEVEL
+@app.route("/thalia/<isbn>")
+def getPrice_thalia(isbn: str):
+    return {"status_code": "501", "message": "Not Implemented"}, 501
 
-    @app.route("/thalia/<isbn>")
-    def getPrice_thalia(isbn:str): #type: ignore
-        return {"status_code": "501", "message": "Not Implemented"}, 501
+@app.route("/rebuy/<isbn>")
+def getPrice_rebuy(isbn: str):
+    try:
+        price = rebuy(isbn)
+    except ValueError as e:
+        return {"status_code": "422", "message": "Unprocessable Content", "context": str(e)}, 422
+    except TimeoutError as e:
+        return {"status_code": "504", "message": "Timeout while processing request", "context": str(e)}, 504
+    else:
+        return {"status_code": "200", "rebuy_price": str(price)}, 200
 
-    @app.route("/rebuy/<isbn>")
-    def getPrice_rebuy(isbn:str): #type: ignore
-        try:
-            price = rebuy(isbn)
-        except ValueError as e:
-            return {"status_code": "422", "message": "Unprocessable Content", "context": str(e)}, 422
-        except TimeoutError as e:
-            return {"status_code": "504", "message": "Timeout while processing request", "context": str(e)}, 504
-        else:
-            return {"status_code": "200", "momox_price": str(price)}, 200
-    
-    @app.route("/momox/<isbn>")
-    def getPrice_momox(isbn:str): #type: ignore
-        try:
-            price = momox(isbn)
-        except ValueError as e:
-            return {"status_code": "422", "message": "Unprocessable Content", "context": str(e)}, 422
-        except TimeoutError as e:
-            return {"status_code": "504", "message": "Timeout while processing request", "context": str(e)}, 504
-        else:
-            return {"status_code": "200", "momox_price": str(price)}, 200
-    
-    @app.route("/all/<isbn>")
-    def getPrice_all(isbn:str): #type: ignore
-        try:
-            #thalia_price = thalia(isbn)
-            rebuy_price = rebuy(isbn)
-            momox_price = momox(isbn)
-        except ValueError as e:
-            return {"status_code": "422", "message": "Unprocessable Content", "context": str(e)}, 422
-        except TimeoutError as e:
-            return {"status_code": "504", "message": "Timeout while processing request", "context": str(e)}, 504
-        else:
-            return {
-                "status_code": "200",
-                #"thalia_price": str(thalia_price),
-                "rebuy_price": str(rebuy_price),
-                "momox_price": str(momox_price)
-            }, 200
-    
-    port = int(os.environ.get("PORT", "5000"))
-    app.run(host="0.0.0.0", port=port, debug=False)
+@app.route("/momox/<isbn>")
+def getPrice_momox(isbn: str):
+    try:
+        price = momox(isbn)
+    except ValueError as e:
+        return {"status_code": "422", "message": "Unprocessable Content", "context": str(e)}, 422
+    except TimeoutError as e:
+        return {"status_code": "504", "message": "Timeout while processing request", "context": str(e)}, 504
+    else:
+        return {"status_code": "200", "momox_price": str(price)}, 200
 
+@app.route("/all/<isbn>")
+def getPrice_all(isbn: str):
+    try:
+        rebuy_price = rebuy(isbn)
+        momox_price = momox(isbn)
+    except ValueError as e:
+        return {"status_code": "422", "message": "Unprocessable Content", "context": str(e)}, 422
+    except TimeoutError as e:
+        return {"status_code": "504", "message": "Timeout while processing request", "context": str(e)}, 504
+    else:
+        return {
+            "status_code": "200",
+            "rebuy_price": str(rebuy_price),
+            "momox_price": str(momox_price)
+        }, 200
 
+# For local development only
 if __name__ == "__main__":
-    main()
+    port = int(os.environ.get("PORT", "5000"))
+    app.run(host="0.0.0.0", port=port, debug=True)
 
     
