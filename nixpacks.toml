@@ -4,9 +4,9 @@ nixPkgs = ["python312", "playwright-driver"]
 [phases.install]
 cmds = [
     "pip install -r requirements.txt",
-    "playwright install chromium",
-    "playwright install-deps chromium"
+    "playwright install",
+    "playwright install-deps"
 ]
 
 [start]
-cmd = "gunicorn main:app --bind 0.0.0.0:$PORT --workers 1 --timeout 300"
+cmd = "gunicorn main:app --bind 0.0.0.0:$PORT --workers 2 --timeout 30"
