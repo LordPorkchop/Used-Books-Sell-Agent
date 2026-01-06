@@ -372,9 +372,11 @@ def getPrice_all(isbn:str): #type: ignore
             "momox_price": str(momox_price)
         }, 200
 
-
-
+def setup():
+    os.system("playwright install")
+    os.system("playwright install-deps")
 
 if __name__ == "__main__":
+    setup()
     port = int(os.environ.get("PORT", "5000"))
     app.run(host="0.0.0.0", port=port, debug=False)
