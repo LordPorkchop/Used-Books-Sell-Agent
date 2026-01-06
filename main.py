@@ -324,6 +324,10 @@ for handler in logging.root.handlers:
     
 app = Flask("BookResellerIntegration")
 
+@app.route("/")
+def showHelp():
+    return {"help": {"commands": ["/momox/<isbn>", "/rebuy/<isbn>", "/thalia/<isbn> (501)"]}}, 200
+
 @app.route("/thalia/<isbn>")
 def getPrice_thalia(isbn:str): #type: ignore
     return {"status_code": "501", "message": "Not Implemented"}, 501
@@ -368,9 +372,11 @@ def getPrice_all(isbn:str): #type: ignore
             "momox_price": str(momox_price)
         }, 200
 
-
-
+def setup():
+    os.system("playwright install")
+    os.system("playwright install-deps")
 
 if __name__ == "__main__":
+    setup()
     port = int(os.environ.get("PORT", "5000"))
     app.run(host="0.0.0.0", port=port, debug=False)
