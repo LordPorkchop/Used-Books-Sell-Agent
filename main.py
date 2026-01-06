@@ -324,6 +324,10 @@ for handler in logging.root.handlers:
     
 app = Flask("BookResellerIntegration")
 
+@app.route("/")
+def showHelp():
+    return {"help": {"commands": ["/momox/<isbn>", "/rebuy/<isbn>", "/thalia/<isbn> (501)"]}}, 200
+
 @app.route("/thalia/<isbn>")
 def getPrice_thalia(isbn:str): #type: ignore
     return {"status_code": "501", "message": "Not Implemented"}, 501
