@@ -3,8 +3,8 @@ nixPkgs = ["python312", "playwright-driver"]
 
 [phases.install]
 cmds = [
- "python venv .venv",
- "source /.venv/activate"
+	"python venv .venv",
+	"source /.venv/activate"
 	"python -m pip install -r requirements.txt",
 	"python -m playwright install",
 	"python -m playwright install-deps"
