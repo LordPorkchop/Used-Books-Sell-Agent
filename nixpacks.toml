@@ -3,7 +3,7 @@ nixPkgs = ["python312", "playwright-driver"]
 
 [phases.install]
 cmds = [
-    "pip install -r requirements.txt"
+    "pip install -r requirements.txt",
     "playwright install",
     "playwright install-deps"
 ]
