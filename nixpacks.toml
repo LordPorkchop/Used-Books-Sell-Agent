@@ -3,6 +3,7 @@ nixPkgs = ["python312", "playwright-driver"]
 
 [phases.install]
 cmds = [
+	"apt-get update",
 	"python3 -m venv /opt/venv",
 	"/opt/venv/bin/pip install --upgrade pip",
 	"/opt/venv/bin/pip install -r requirements.txt",
