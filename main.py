@@ -1,18 +1,16 @@
+import time
 from playwright.sync_api import sync_playwright, TimeoutError
 import logging
 from flask import Flask
 import os
 
 
-# UNFINISHED
 def thalia(
     isbn: str,
     use_obfuscation_headers: bool = True,
     remote_debugging: bool = False,
     remote_debugging_port: int | None = None,
 ) -> float:
-
-    raise RuntimeError("This function has not been implemented")
 
     if not isbn.isdigit() or len(isbn) not in [10, 12, 13, 15, 16]:
         raise ValueError("Invalid ISBN")
@@ -28,7 +26,7 @@ def thalia(
                 args=[f"--remote-debugging-port={remote_debugging_port}"],
             )
         else:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(headless=False)
 
         if use_obfuscation_headers:
             context = browser.new_context(
@@ -48,106 +46,53 @@ def thalia(
 
         try:
             page.goto(
-                "https://www.thalia.de/versandbox/artikel/eingeben",
-                referer="/gebrauchtbuch/verkauf",
-                wait_until="domcontentloaded",
-                timeout=5000,
+                url="https://www.thalia.de/gebrauchtbuch/verkauf",
+                referer="/gebrauchtbuch/uebersicht",
             )
-            logging.info("Opened Thalia merchant page")
+            page.wait_for_load_state("domcontentloaded", timeout=5000)
         except TimeoutError:
-            logging.error(
-                '"https://www.thalia.de/versandbox/artikel/eingeben" timed out after 5s'
-            )
-            browser.close()
-            logging.info("Closed browser")
-            return -1
-
-        try:
-            close_btn = page.locator(
-                "html body layout-fullsize main#content.layout-main div.layout-content div.component-content versandbox-qualitaetspruefungsoverlay dialog.element-overlay-small div.actions button.element-button-primary.submit-button"
-            )
-            close_btn.wait_for(state="visible", timeout=2000)
-            logging.info("Quality check popup detected")
-            close_btn.click()
-            close_btn.wait_for(state="hidden", timeout=2000)
-            logging.info("Closed quality check popup")
-
-        except TimeoutError:
-            logging.info("No quality check popup detected")
-
-        try:
-            cookie_btn = page.locator('button:has-text("Alle akzeptieren")')
-            cookie_btn.wait_for(state="visible", timeout=2000)
-            logging.info("Cookie consent popup detected")
-            cookie_btn.click()
-            cookie_btn.wait_for(state="hidden", timeout=2000)
-            logging.info("Accepted cookies")
-        except TimeoutError:
-            logging.info("No cookie consent popup detected")
-
-        text_input_btn = page.locator('button[id="versandbox-eingabe-text-input"]')
-        text_input_btn.click()
-        logging.info("Switched to text input mode")
-
-        isbn_input = page.locator('input[name="eingabe"]')
-        logging.info("Found ISBN input")
-        isbn_input.fill(isbn)
-        logging.info(f"Filled ISBN: {isbn}")
-
-        submit_btn = page.locator('button[id="versandbox-eingabe-text-input"]')
-        submit_btn.click()
-        logging.info("Submitted ISBN")
-
-        page.wait_for_load_state("domcontentloaded")
-        logging.info("Offer page loaded")
-
-        offer_dialog = page.locator(
-            "html body.dialog-open layout-fullsize main#content.layout-main div.layout-content div.component-content versandbox-bestaetigen-overlay dialog.element-overlay-small.dialog-angebot"
-        )
-        no_offer_dialog = page.locator(
-            "html body.dialog-open layout-fullsize main#content.layout-main div.layout-content div.component-content versandbox-bestaetigen-overlay dialog.element-overlay-small.dialog-nicht-gefunden"
-        )
-        not_found_dialog = page.locator(
-            "html body.dialog-open layout-fullsize main#content.layout-main div.layout-content div.component-content versandbox-bestaetigen-overlay dialog.element-overlay-small.dialog-kein-ankauf"
-        )
-
-        if offer_dialog.is_hidden():
-            if no_offer_dialog.is_hidden():
-                if not_found_dialog.is_hidden():
-                    logging.error("None of the expected dialogs appeared")
-                    browser.close()
-                    logging.info("Closed browser")
-                    return -1
-                else:
-                    logging.info("Book not found")
-                    browser.close()
-                    logging.info("Closed browser")
-                    return -1
-            else:
-                logging.info("No offer available for this book")
-                browser.close()
-                logging.info("Closed browser")
-                return -1
-
-        try:
-            offer_price_element = page.locator('p[class*="artikel-preis"]')
-            offer_price_element.wait_for(state="visible", timeout=500)
-            offer_price_text = offer_price_element.inner_text()
-            offer_price = float(
-                offer_price_text.replace("€", "").replace(",", ".").strip()
-            )
-            logging.info(f"Offer price: {offer_price} EUR")
-        except TimeoutError:
-            logging.error("Failed to locate offer price element")
-            browser.close()
-            logging.info("Closed browser")
-            logging.info(f'thalia(isbn="{isbn}") -> {-1}')
+            logging.error("Thalia merchant page timed out")
             return -1
         else:
-            browser.close()
-            logging.info("Closed browser")
-            logging.info(f'thalia(isbn="{isbn}") -> {offer_price}')
-            return offer_price
+            logging.info("Opened Thalia merchant page")
+
+        cookie_banner = page.locator('div[id="usercentrics-root"]')
+
+        try:
+            cookie_banner.wait_for(state="visible", timeout=2500)
+            logging.info("Cookie banner detected")
+            accept_btn = cookie_banner.locator(
+                'button[data-testid="uc-accept-all-button"]'
+            )
+            accept_btn.click()
+        except TimeoutError:
+            logging.info("No cookie banner detected")
+        else:
+            logging.info("All cookies accepted")
+
+        try:
+            goto_seller_page_btn = page.locator(
+                'a[href="/versandbox/artikel/eingeben"][class*="button"]'
+            )
+            goto_seller_page_btn.click(timeout=5000)
+        except TimeoutError:
+            logging.error("Thalia merchant page timed out")
+        else:
+            logging.info("Opened seller page")
+
+        quality_popup = page.locator("versandbox-qualitaetspruefungsoverlay")
+
+        try:
+            quality_popup.wait_for(state="visible", timeout=1000)
+            logging.info("Detected quality check popup")
+        except TimeoutError:
+            logging.info("No quality check popup detected")
+        else:
+            close_btn = quality_popup.locator('button[class*="submit-button"]')
+            close_btn.click()
+            logging.info("Closed quality check popup")
+
+        return -1
 
 
 def rebuy(
@@ -448,12 +393,7 @@ def getPrice_all(isbn: str):  # type: ignore
         }, 200
 
 
-def setup():
-    os.system("playwright install")
-    os.system("playwright install-deps")
-
-
 if __name__ == "__main__":
-    setup()
-    port = int(os.environ.get("PORT", "5000"))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    thalia("9783550204272")
+    # port = int(os.environ.get("PORT", "5000"))
+    # app.run(host="0.0.0.0", port=port, debug=False)
