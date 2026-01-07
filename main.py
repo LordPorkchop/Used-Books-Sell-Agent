@@ -317,7 +317,14 @@ app = Flask("BookResellerIntegration")
 @app.route("/")
 def showHelp():
     return {
-        "help": {"commands": ["/momox/<isbn>", "/rebuy/<isbn>", "/thalia/<isbn> (501)"]}
+        "help": {
+            "commands": [
+                "/momox/<isbn>",
+                "/rebuy/<isbn>",
+                "/thalia/<isbn>",
+                "/all/<isbn>",
+            ]
+        }
     }, 200
 
 
@@ -369,7 +376,7 @@ def getPrice_momox(isbn: str):  # type: ignore
 @app.route("/all/<isbn>")
 def getPrice_all(isbn: str):  # type: ignore
     try:
-        # thalia_price = thalia(isbn)
+        thalia_price = thalia(isbn)
         rebuy_price = rebuy(isbn)
         momox_price = momox(isbn)
     except ValueError as e:
@@ -387,7 +394,7 @@ def getPrice_all(isbn: str):  # type: ignore
     else:
         return {
             "status_code": "200",
-            # "thalia_price": str(thalia_price),
+            "thalia_price": str(thalia_price),
             "rebuy_price": str(rebuy_price),
             "momox_price": str(momox_price),
         }, 200
