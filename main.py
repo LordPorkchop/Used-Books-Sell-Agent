@@ -2,6 +2,7 @@ import logging
 import os
 
 from flask import Flask
+from logging.config import dictConfig
 from playwright.sync_api import sync_playwright, TimeoutError, Browser, BrowserContext
 from typing import Literal
 
@@ -175,35 +176,73 @@ def momox(context: BrowserContext, isbn: str) -> float:
     return -1
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s.%(msecs)03d] [%(levelname)-8s] [%(name)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+# Colored logs
+class ColoredFormatter(logging.Formatter):
+    COLORS = {
+        "DEBUG": "\033[37m",  # Gray
+        "INFO": "\033[34m",  # Blue
+        "WARNING": "\033[33m",  # Yellow
+        "ERROR": "\033[31m",  # Red
+        "CRITICAL": "\033[35m",  # Magenta
+        "RESET": "\033[0m",
+    }
 
-# Add color to log levels
-for handler in logging.root.handlers:
-    if isinstance(handler, logging.StreamHandler):
-        formatter: logging.Formatter = handler.formatter or logging.Formatter()
+    def format(self, record: logging.LogRecord):
+        log_color = self.COLORS.get(record.levelname, self.COLORS["RESET"])
+        record.levelname = f"{log_color}{record.levelname}{self.COLORS['RESET']}"
+        return super().format(record)
 
-        class ColoredFormatter(logging.Formatter):
-            COLORS = {
-                "DEBUG": "\033[37m",  # Gray
-                "INFO": "\033[34m",  # Blue
-                "WARNING": "\033[33m",  # Yellow
-                "ERROR": "\033[31m",  # Red
-                "CRITICAL": "\033[35m",  # Magenta
-                "RESET": "\033[0m",
+
+# Configure logging with dictConfig
+dictConfig(
+    {
+        "version": 1,
+        "filters": {
+            "info_and_warning": {
+                "()": lambda: type(
+                    "",
+                    (object,),
+                    {
+                        "filter": lambda self, record: record.levelno
+                        < 40  # < ERROR (40)
+                    },
+                )(),
+            },
+            "error_and_critical": {
+                "()": lambda: type(
+                    "",
+                    (object,),
+                    {
+                        "filter": lambda self, record: record.levelno
+                        >= 40  # >= ERROR (40)
+                    },
+                )(),
+            },
+        },
+        "formatters": {
+            "colored": {
+                "()": ColoredFormatter,
+                "format": "[%(asctime)s.%(msecs)03d] [%(levelname)-8s] [%(name)s] %(message)s",
+                "datefmt": "%Y-%m-%d %H:%M:%S",
             }
-
-            def format(self, record: logging.LogRecord):
-                log_color = self.COLORS.get(record.levelname, self.COLORS["RESET"])
-                record.levelname = (
-                    f"{log_color}{record.levelname}{self.COLORS['RESET']}"
-                )
-                return super().format(record)
-
-        handler.setFormatter(ColoredFormatter(formatter._fmt, formatter.datefmt))
+        },
+        "handlers": {
+            "stdout": {
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stdout",
+                "formatter": "colored",
+                "filters": ["info_and_warning"],
+            },
+            "stderr": {
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stderr",
+                "formatter": "colored",
+                "filters": ["error_and_critical"],
+            },
+        },
+        "root": {"level": "INFO", "handlers": ["stdout", "stderr"]},
+    }
+)
 
 
 app = Flask("BookResellerIntegration")
