@@ -144,7 +144,7 @@ def momox(context: BrowserContext, isbn: str) -> float:
         logging.info("Found ISBN input")
 
     try:
-        isbn_input.fill(isbn, timeout=2000)
+        isbn_input.fill(isbn)
         logging.info(f"Filled ISBN: {isbn}")
         isbn_input.press("Enter", timeout=2000)
     except TimeoutError:
