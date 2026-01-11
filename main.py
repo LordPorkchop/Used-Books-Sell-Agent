@@ -343,11 +343,32 @@ def getPrice_momox(isbn: str):  # type: ignore
         return {"status_code": "200", "momox_price": str(price)}, 200
 
 
+@app.route("/buchmaxe/<isbn>")
+def getPrice_buchmaxe(isbn: str):
+    try:
+        price = buchmaxe(context, isbn)
+    except ValueError as e:
+        return {
+            "status_code": 422,
+            "message": "Unprocessable Content",
+            "context": str(e),
+        }, 422
+    except TimeoutError as e:
+        return {
+            "status_code": 504,
+            "message": "Timeout while processing request",
+            "context": str(e),
+        }, 504
+    else:
+        return {"status_code": 200, "buchmaxe_price": str(price)}, 200
+
+
 @app.route("/all/<isbn>")
 def getPrice_all(isbn: str):  # type: ignore
     try:
         rebuy_price = rebuy(context, isbn)
         momox_price = momox(context, isbn)
+        buchmaxe_price = buchmaxe(context, isbn)
     except ValueError as e:
         return {
             "status_code": "422",
@@ -365,6 +386,7 @@ def getPrice_all(isbn: str):  # type: ignore
             "status_code": "200",
             "rebuy_price": str(rebuy_price),
             "momox_price": str(momox_price),
+            "buchmaxe_price": str(buchmaxe_price),
         }, 200
 
 
