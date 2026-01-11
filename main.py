@@ -299,7 +299,14 @@ browser, context = start_playwright()
 @app.route("/")
 def showHelp():
     return {
-        "help": {"commands": ["/momox/<isbn>", "/rebuy/<isbn>", "/all/<isbn>"]}
+        "help": {
+            "commands": [
+                "/momox/<isbn>",
+                "/rebuy/<isbn>",
+                "/buchmaxe/<isbn>",
+                "/all/<isbn>",
+            ]
+        }
     }, 200
 
 
