@@ -245,7 +245,7 @@ dictConfig(
 )
 
 
-app = Flask("BookResellerIntegration")
+app = Flask("Booksell-backend")
 browser, context = start_playwright()
 
 
