@@ -176,6 +176,53 @@ def momox(context: BrowserContext, isbn: str) -> float:
     return -1
 
 
+def buchmaxe(context: BrowserContext, isbn: str) -> float:
+    if not isbn.isdigit() or len(isbn) not in [10, 12, 13, 15, 16]:
+        raise ValueError("Invalid ISBN")
+
+    page = context.new_page()
+
+    try:
+        page.goto("https://www.buchmaxe.at")
+        page.wait_for_load_state("domcontentloaded", timeout=5000)
+    except TimeoutError:
+        logging.error("buchmaxe.at timed out after 5000ms")
+        page.close()
+        logging.info("Page closed")
+        return -1
+
+    isbn_input = page.locator("input[name*=isbn_eingabe]")
+    try:
+        isbn_input.wait_for(state="visible", timeout=1000)
+        isbn_input.fill(isbn)
+        isbn_input.press("Enter", timeout=2000)
+    except TimeoutError:
+        logging.error("Failed to locate or fill ISBN input")
+        page.close()
+        return -1
+
+    page.wait_for_load_state("domcontentloaded")
+
+    price_offer_element = page.locator(
+        "#ctl00_ctl00_plcTopvisual_updatePanel1 > div.card.text-center > div.card-body > p:nth-child(2) > span"
+    )
+    try:
+        price_offer_element.wait_for(state="visible", timeout=2000)
+        price_offer = price_offer_element.inner_text()
+        price_offer = float(price_offer.replace(" €", "").replace(",", "."))
+    except TimeoutError:
+        logging.info("No offer available for this book")
+        page.close()
+        return -1
+    else:
+        page.close()
+        if price_offer == 0:
+            logging.info("No offer available for this book")
+            return -1
+        else:
+            return price_offer
+
+
 # Colored logs
 class ColoredFormatter(logging.Formatter):
     COLORS = {
@@ -252,7 +299,14 @@ browser, context = start_playwright()
 @app.route("/")
 def showHelp():
     return {
-        "help": {"commands": ["/momox/<isbn>", "/rebuy/<isbn>", "/all/<isbn>"]}
+        "help": {
+            "commands": [
+                "/momox/<isbn>",
+                "/rebuy/<isbn>",
+                "/buchmaxe/<isbn>",
+                "/all/<isbn>",
+            ]
+        }
     }, 200
 
 
@@ -296,11 +350,32 @@ def getPrice_momox(isbn: str):  # type: ignore
         return {"status_code": "200", "momox_price": str(price)}, 200
 
 
+@app.route("/buchmaxe/<isbn>")
+def getPrice_buchmaxe(isbn: str):
+    try:
+        price = buchmaxe(context, isbn)
+    except ValueError as e:
+        return {
+            "status_code": 422,
+            "message": "Unprocessable Content",
+            "context": str(e),
+        }, 422
+    except TimeoutError as e:
+        return {
+            "status_code": 504,
+            "message": "Timeout while processing request",
+            "context": str(e),
+        }, 504
+    else:
+        return {"status_code": 200, "buchmaxe_price": str(price)}, 200
+
+
 @app.route("/all/<isbn>")
 def getPrice_all(isbn: str):  # type: ignore
     try:
         rebuy_price = rebuy(context, isbn)
         momox_price = momox(context, isbn)
+        buchmaxe_price = buchmaxe(context, isbn)
     except ValueError as e:
         return {
             "status_code": "422",
@@ -318,6 +393,7 @@ def getPrice_all(isbn: str):  # type: ignore
             "status_code": "200",
             "rebuy_price": str(rebuy_price),
             "momox_price": str(momox_price),
+            "buchmaxe_price": str(buchmaxe_price),
         }, 200
 
 
@@ -325,5 +401,5 @@ if __name__ == "__main__":
     try:
         port = int(os.environ.get("PORT", "5000"))
         app.run(host="0.0.0.0", port=port, debug=False)
-    except:
+    finally:
         stop_playwright(browser)
