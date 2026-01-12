@@ -1,4 +1,3 @@
-import json
 import logging
 import requests
 import os
@@ -307,6 +306,7 @@ def showHelp():
                 "/rebuy/<isbn>",
                 "/buchmaxe/<isbn>",
                 "/all/<isbn>",
+                "/info/<isbn>",
             ]
         }
     }, 200
@@ -408,31 +408,52 @@ def get_book_info(isbn: str):
         try:
             response = requests.get(
                 f"https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn}",
+                timeout=10,
             )
             response.raise_for_status()
-        except:
+        except requests.exceptions.Timeout:
+            return {
+                "status_code": 504,
+                "message": "Gateway Timeout: Google Books API did not respond in time",
+            }, 504
+        except requests.exceptions.HTTPError:
+            return {
+                "status_code": 503,
+                "message": "The request to Google's Books API did not complete successfully",
+            }, 503
+        except Exception as e:
             return {
                 "status_code": 500,
-                "message": "An internal server error occured during the processing of the request",
+                "message": "An internal server error occurred during the processing of the request",
+                "context": str(e),
             }, 500
         else:
-            book_data = response.content.decode()
-            book_data_dir = json.loads(book_data)
-            if book_data_dir["totalItems"] == 0:
+            book_data = response.json()
+            if book_data["totalItems"] == 0:
                 return {"status_code": 422, "message": "Invalid ISBN"}, 422
-            book = book_data_dir["items"][0]
-            book_info = book["volumeInfo"]
-            publish_year = book_info["publishedDate"].split("-")[0]
-            return {
-                "title": book_info["title"],
-                "authors": book_info["authors"],
-                "published_year": publish_year,
-                "status_code": 200,
-            }, 200
-    except:
+            try:
+                book = book_data["items"][0]["volumeInfo"]
+                title = book["title"]
+                authors = book["authors"]
+                publish_year = book["publishedDate"].split("-")[0]
+            except Exception as e:
+                return {
+                    "status_code": 500,
+                    "message": "An error occurred during the parsing of Google's API response",
+                    "context": str(e),
+                }, 500
+            else:
+                return {
+                    "title": title if title else "N/A",
+                    "authors": authors if authors else "N/A",
+                    "published_year": publish_year if publish_year else "N/A",
+                    "status_code": 200,
+                }, 200
+    except Exception as e:
         return {
             "status_code": 500,
-            "message": "An error occured during the processing of the request",
+            "message": "An unknown error occurred during the processing of the request",
+            "context": str(e),
         }, 500
 
 
