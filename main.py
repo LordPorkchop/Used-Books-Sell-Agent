@@ -183,10 +183,10 @@ def buchmaxe(context: BrowserContext, isbn: str) -> float:
     page = context.new_page()
 
     try:
-        page.goto("https://www.buchmaxe.at")
+        page.goto("https://www.buchmaxe.de")
         page.wait_for_load_state("domcontentloaded", timeout=5000)
     except TimeoutError:
-        logging.error("buchmaxe.at timed out after 5000ms")
+        logging.error("buchmaxe.de timed out after 5000ms")
         page.close()
         logging.info("Page closed")
         return -1
