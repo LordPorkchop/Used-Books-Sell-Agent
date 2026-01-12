@@ -1,4 +1,6 @@
+import json
 import logging
+import requests
 import os
 
 from flask import Flask
@@ -54,6 +56,28 @@ def stop_playwright(browser: Browser):
         browser.close()
     except Exception:
         raise ValueError('"{}" cannot be closed since it is not open'.format(browser))
+
+
+def get_book_info(isbn: str) -> tuple | None:
+    isbn = isbn.replace("-", "")
+    if not isbn.isdigit() or len(isbn) not in [10, 12, 13, 15, 16]:
+        raise ValueError("Invalid isbn: {}".format(isbn))
+    try:
+        response = requests.get(
+            f"https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn}",
+        )
+        response.raise_for_status()
+    except:
+        return None
+    else:
+        book_data = response.content.decode()
+        book_data_dir = json.loads(book_data)
+        if book_data_dir["totalItems"] == 0:
+            return None
+        book = book_data_dir["items"][0]
+        book_info = book["volumeInfo"]
+        publish_year = book_info["publishedDate"].split("-")[0]
+        return book_info["title"], book_info["authors"], publish_year
 
 
 def rebuy(context: BrowserContext, isbn: str) -> float:
