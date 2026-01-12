@@ -401,33 +401,39 @@ def getPrice_all(isbn: str):  # type: ignore
 
 @app.route("/info/<isbn>")
 def get_book_info(isbn: str):
-    isbn = isbn.replace("-", "")
-    if not isbn.isdigit() or len(isbn) not in [10, 12, 13, 15, 16]:
-        raise ValueError("Invalid isbn: {}".format(isbn))
     try:
-        response = requests.get(
-            f"https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn}",
-        )
-        response.raise_for_status()
+        isbn = isbn.replace("-", "")
+        if not isbn.isdigit() or len(isbn) not in [10, 12, 13, 15, 16]:
+            raise ValueError("Invalid isbn: {}".format(isbn))
+        try:
+            response = requests.get(
+                f"https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn}",
+            )
+            response.raise_for_status()
+        except:
+            return {
+                "status_code": 500,
+                "message": "An internal server error occured during the processing of the request",
+            }, 500
+        else:
+            book_data = response.content.decode()
+            book_data_dir = json.loads(book_data)
+            if book_data_dir["totalItems"] == 0:
+                return {"status_code": 422, "message": "Invalid ISBN"}, 422
+            book = book_data_dir["items"][0]
+            book_info = book["volumeInfo"]
+            publish_year = book_info["publishedDate"].split("-")[0]
+            return {
+                "title": book_info["title"],
+                "authors": book_info["authors"],
+                "published_year": publish_year,
+                "status_code": 200,
+            }, 200
     except:
         return {
             "status_code": 500,
-            "message": "An internal server error occured during the processing of the request",
+            "message": "An error occured during the processing of the request",
         }, 500
-    else:
-        book_data = response.content.decode()
-        book_data_dir = json.loads(book_data)
-        if book_data_dir["totalItems"] == 0:
-            return {"status_code": 422, "message": "Invalid ISBN"}, 422
-        book = book_data_dir["items"][0]
-        book_info = book["volumeInfo"]
-        publish_year = book_info["publishedDate"].split("-")[0]
-        return {
-            "title": book_info["title"],
-            "authors": book_info["authors"],
-            "published_year": publish_year,
-            "status_code": 200,
-        }, 200
 
 
 if __name__ == "__main__":
