@@ -7,6 +7,11 @@ from logging.config import dictConfig
 from playwright.sync_api import sync_playwright, TimeoutError, Browser, BrowserContext
 from typing import Literal
 
+# Module imports
+from bmx import buchmaxe
+from mox import momox
+from rby import rebuy
+
 
 def start_playwright(
     browsertype: Literal["chromium", "firefox", "webkit"] = "chromium",
@@ -55,173 +60,6 @@ def stop_playwright(browser: Browser):
         browser.close()
     except Exception:
         raise ValueError('"{}" cannot be closed since it is not open'.format(browser))
-
-
-def rebuy(context: BrowserContext, isbn: str) -> float:
-    if not isbn.isdigit() or len(isbn) not in [10, 12, 13, 15, 16]:
-        raise ValueError("Invalid ISBN")
-
-    page = context.new_page()
-
-    logging.info("Opened new tab")
-
-    try:
-        page.goto(
-            "https://www.rebuy.de/verkaufen/buecher",
-            referer="/verkaufen",
-            wait_until="domcontentloaded",
-            timeout=5000,
-        )
-        logging.info("Opened Rebuy merchant page")
-    except TimeoutError:
-        logging.error('"https://www.rebuy.de/verkaufen/buecher" timed out after 5s')
-        page.close()
-        logging.info("Closed browser page")
-        return -1
-
-    try:
-        isbn_input = page.locator(
-            'input[id="s_input5"], input[class*="search-input"]'
-        ).first
-        isbn_input.wait_for(state="visible")
-        logging.info("Found ISBN input")
-        isbn_input.fill(isbn)
-        logging.info(f"Filled ISBN: {isbn}")
-        isbn_input.press("Enter")
-        logging.info("Pressed Enter to search")
-        page.wait_for_load_state("domcontentloaded")
-        logging.info("Search results loaded")
-    except TimeoutError:
-        logging.error("Failed to locate or fill ISBN input")
-        page.close()
-        logging.info("Closed browser page")
-        return -1
-
-    try:
-        price_offer_element = page.locator('div[data-cy="product-price"]').first
-        price_offer_element.wait_for(state="visible", timeout=2000)
-        price_offer_text = price_offer_element.inner_text()
-        price_offer = float(price_offer_text.replace("€", "").replace(",", ".").strip())
-        logging.info(f"Offer price: {price_offer} EUR")
-        return price_offer
-    except TimeoutError:
-        logging.info("No offer available for this book")
-        page.close()
-        logging.info("Closed browser page")
-        return -1
-
-
-def momox(context: BrowserContext, isbn: str) -> float:
-    if not isbn.isdigit() or len(isbn) not in [10, 12, 13, 15, 16]:
-        raise ValueError("Invalid ISBN")
-
-    page = context.new_page()
-
-    logging.info("Opened new tab")
-
-    try:
-        page.goto(
-            "https://www.momox.de/buecher-verkaufen",
-            referer="/",
-            wait_until="domcontentloaded",
-            timeout=5000,
-        )
-        logging.info("Opened Momox merchant page")
-    except TimeoutError:
-        page.close()
-        logging.info("Closed browser page")
-        return -1
-
-    try:
-        isbn_input = page.locator(
-            'input[class*="product-input"], input[class*="searchbox-input"]'
-        ).first
-        isbn_input.wait_for(state="visible", timeout=2000)
-    except TimeoutError:
-        logging.error("Failed to locate ISBN input")
-        page.close()
-        logging.info("Closed browser page")
-        return -1
-    else:
-        logging.info("Found ISBN input")
-
-    try:
-        isbn_input.fill(isbn)
-        logging.info(f"Filled ISBN: {isbn}")
-        isbn_input.press("Enter", timeout=2000)
-    except TimeoutError:
-        logging.error("Failed to fill or submit ISBN input")
-        page.close()
-        logging.info("Closed browser")
-        return -1
-
-    page.wait_for_load_state("domcontentloaded")
-    logging.info("Search results loaded")
-
-    try:
-        price_offer_element = page.locator(".searchresult-price").first
-        price_offer_element.wait_for(state="visible", timeout=1000)
-        price_offer_text = price_offer_element.inner_text()
-        price_offer = float(price_offer_text.replace("€", "").replace(",", ".").strip())
-        logging.info(f"Offer price: {price_offer} EUR")
-        page.close()
-        logging.info("Closed browser page")
-        logging.info(f'momox(isbn="{isbn}") -> {price_offer}')
-        return price_offer
-    except TimeoutError:
-        logging.info("No offer available for this book")
-        page.close()
-        logging.info("Closed browser page")
-        logging.info(f'momox(isbn="{isbn}") -> {-1}')
-
-    return -1
-
-
-def buchmaxe(context: BrowserContext, isbn: str) -> float:
-    if not isbn.isdigit() or len(isbn) not in [10, 12, 13, 15, 16]:
-        raise ValueError("Invalid ISBN")
-
-    page = context.new_page()
-
-    try:
-        page.goto("https://www.buchmaxe.de")
-        page.wait_for_load_state("domcontentloaded", timeout=5000)
-    except TimeoutError:
-        logging.error("buchmaxe.de timed out after 5000ms")
-        page.close()
-        logging.info("Page closed")
-        return -1
-
-    isbn_input = page.locator("input[name*=isbn_eingabe]")
-    try:
-        isbn_input.wait_for(state="visible", timeout=1000)
-        isbn_input.fill(isbn)
-        isbn_input.press("Enter", timeout=2000)
-    except TimeoutError:
-        logging.error("Failed to locate or fill ISBN input")
-        page.close()
-        return -1
-
-    page.wait_for_load_state("domcontentloaded")
-
-    price_offer_element = page.locator(
-        "#ctl00_ctl00_plcTopvisual_updatePanel1 > div.card.text-center > div.card-body > p:nth-child(2) > span"
-    )
-    try:
-        price_offer_element.wait_for(state="visible", timeout=2000)
-        price_offer = price_offer_element.inner_text()
-        price_offer = float(price_offer.replace(" €", "").replace(",", "."))
-    except TimeoutError:
-        logging.info("No offer available for this book")
-        page.close()
-        return -1
-    else:
-        page.close()
-        if price_offer == 0:
-            logging.info("No offer available for this book")
-            return -1
-        else:
-            return price_offer
 
 
 # Colored logs
