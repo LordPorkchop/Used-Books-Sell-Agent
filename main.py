@@ -136,21 +136,11 @@ browser, context = start_playwright()
 
 
 @app.route("/")
-def showHelp():
-    return {
-        "help": {
-            "commands": [
-                "/momox/<isbn>",
-                "/rebuy/<isbn>",
-                "/buchmaxe/<isbn>",
-                "/all/<isbn>",
-                "/info/<isbn>",
-            ]
-        }
-    }, 200
+def home():
+    return {"GUI coming soon!"}, 200
 
 
-@app.route("/rebuy/<isbn>")
+@app.route("/api/r/<isbn>")
 def getPrice_rebuy(isbn: str):  # type: ignore
     try:
         price = rebuy(context, isbn)
@@ -170,7 +160,7 @@ def getPrice_rebuy(isbn: str):  # type: ignore
         return {"status_code": "200", "rebuy_price": str(price)}, 200
 
 
-@app.route("/momox/<isbn>")
+@app.route("/api/m/<isbn>")
 def getPrice_momox(isbn: str):  # type: ignore
     try:
         price = momox(context, isbn)
@@ -190,7 +180,7 @@ def getPrice_momox(isbn: str):  # type: ignore
         return {"status_code": "200", "momox_price": str(price)}, 200
 
 
-@app.route("/buchmaxe/<isbn>")
+@app.route("/api/b/<isbn>")
 def getPrice_buchmaxe(isbn: str):
     try:
         price = buchmaxe(context, isbn)
@@ -210,7 +200,7 @@ def getPrice_buchmaxe(isbn: str):
         return {"status_code": 200, "buchmaxe_price": str(price)}, 200
 
 
-@app.route("/all/<isbn>")
+@app.route("/api/all/<isbn>")
 def getPrice_all(isbn: str):  # type: ignore
     try:
         rebuy_price = rebuy(context, isbn)
@@ -237,7 +227,7 @@ def getPrice_all(isbn: str):  # type: ignore
         }, 200
 
 
-@app.route("/info/<isbn>")
+@app.route("/api/info/<isbn>")
 def get_book_info(isbn: str):
     try:
         isbn = isbn.replace("-", "")
