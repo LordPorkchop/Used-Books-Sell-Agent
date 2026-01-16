@@ -137,7 +137,7 @@ browser, context = start_playwright()
 
 @app.route("/")
 def home():
-    return {"GUI coming soon!"}, 200
+    return {"message": "GUI coming soon!"}, 200
 
 
 @app.route("/api/r/<isbn>")
