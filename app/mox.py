@@ -1,5 +1,5 @@
 import logging
-from playwright.sync_api import BrowserContext
+from playwright.sync_api import BrowserContext, TimeoutError
 
 
 def momox(context: BrowserContext, isbn: str) -> float:
