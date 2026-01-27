@@ -2,7 +2,7 @@ import logging
 import requests
 import os
 
-from flask import Flask
+from flask import Flask, abort, request
 from logging.config import dictConfig
 from playwright.sync_api import sync_playwright, TimeoutError, Browser, BrowserContext
 from typing import Literal
@@ -133,6 +133,14 @@ dictConfig(
 
 app = Flask("Booksell-backend")
 browser, context = start_playwright()
+
+
+@app.before_request
+def block_specific_uris():
+    blocked = ["/admin", "/wp-admin", "/wordpress", ".php"]
+    for itm in blocked:
+        if itm in request.url:
+            abort(403)
 
 
 @app.route("/")
